@@ -20,7 +20,9 @@ setuptools.setup(
     ],
     python_requires='>=3.6',
     entry_points={
-        'console_scripts': ['thermostt=illallangi.thermostt:__main__.cli'],
+        'console_scripts': [
+            'thermostt=illallangi.thermostt:__main__.cli',
+        ],
     },
     install_requires=[
         'Click',

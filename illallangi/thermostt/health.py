@@ -3,23 +3,25 @@ from jmespath.parser import ParsedResult
 
 from loguru import logger
 
+from .healthstate import HealthState
 
-class Sensor(object):
+
+class Health(object):
     def __init__(
             self,
             name,
             *args,
             topic=None,
             jmespath=None,
-            delta=0.0,
+            healthy=None,
             **kwargs):
         super().__init__(
             *args,
             **kwargs)
-        self.topic = topic or f'tele/{name}/SENSOR'
-        self.jmespath = jmespath or 'payload.DS18B20.Temperature'
+        self.topic = topic or f'tele/{name}/LWT'
+        self.jmespath = jmespath or 'payload'
         self.jmespath = compile(self.jmespath) if not isinstance(self.jmespath, ParsedResult) else self.jmespath
-        self.delta = delta
+        self.healthy = healthy or ['Online']
         logger.debug('Subscribed to {} with jmespath filter {}', self.topic, self.jmespath)
 
     @property
@@ -41,9 +43,12 @@ class Sensor(object):
             return
 
         try:
-            result = float(filtered_json)
+            result = str(filtered_json)
         except Exception as e:
-            logger.error('Error casting to float: {}', str(e))
+            logger.error('Error casting to str: {}', str(e))
             return
 
-        self.value = result + self.delta
+        if result in self.healthy:
+            self.value = HealthState.Healthy
+            return
+        self.value = HealthState.Unhealthy

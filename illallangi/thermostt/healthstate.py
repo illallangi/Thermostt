@@ -2,10 +2,9 @@ from enum import Enum, auto, unique
 
 
 @unique
-class LoadState(Enum):
-    Q0 = auto()
-    Q1 = auto()
-    Qe = auto()
+class HealthState(Enum):
+    Healthy = auto()
+    Unhealthy = auto()
 
     def __str__(self):
         return self.name

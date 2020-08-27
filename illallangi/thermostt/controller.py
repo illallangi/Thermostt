@@ -6,6 +6,7 @@ from loguru import logger
 
 from paho.mqtt.client import Client
 
+from .healthstate import HealthState
 from .loadstate import LoadState
 
 
@@ -18,6 +19,7 @@ class Controller(object):
             sensor,
             vmax,
             vmin,
+            health,
             *args,
             name=None,
             lwt_topic=None,
@@ -34,6 +36,7 @@ class Controller(object):
         self.sensor = sensor
         self.vmax = vmax
         self.vmin = vmin
+        self.health = health
 
         self.name = name or __package__
         self.lwt_topic = lwt_topic or f'tele/{self.name}/LWT'.replace('.', '_')
@@ -45,8 +48,8 @@ class Controller(object):
             'sensor': self.sensor.value,
             'vmax': self.vmax.value,
             'vmin': self.vmin.value,
-            'load': self.load.value.name if self.load.value else None,
-            'target': self.target.name if 'target' in self.__dict__ and self.target is not self.load.value else None,
+            'load': self.load.value,
+            'target': self.target.name if 'target' in self.__dict__ and self.target != self.load else None,
         }
 
         return dumps({
@@ -54,6 +57,14 @@ class Controller(object):
             for k in o
             if o[k]
         })
+
+    @property
+    def healthy(self):
+        return self.load.value and \
+               self.sensor.value and \
+               self.vmax.value and \
+               self.vmin.value and \
+               not HealthState.Unhealthy in (h.value for h in self.health)
 
     @cached_property
     def client(self):
@@ -65,7 +76,7 @@ class Controller(object):
 
     def connect(self):
         self.client.connect(self.server, self.port, 60)
-        self.client.publish(self.lwt_topic, 'Online', qos=0, retain=False)
+        self.client.publish(self.lwt_topic, 'Online' if self.healthy else 'Error', qos=0, retain=False)
         return self.client
 
     def loop_forever(self):
@@ -77,6 +88,8 @@ class Controller(object):
         self.client.subscribe(self.sensor.topic)
         self.client.subscribe(self.vmax.topic)
         self.client.subscribe(self.vmin.topic)
+        for health in self.health:
+            self.client.subscribe(health.topic)
 
     def on_message(self, client, userdata, msg):
         try:
@@ -107,23 +120,28 @@ class Controller(object):
         if msg.topic == self.vmin.topic:
             self.vmin.on_message(payload)
 
-        if self.load.value and \
-           self.sensor.value and \
-           self.vmax.value and \
-           self.vmin.value:
+        for health in self.health:
+            if msg.topic == health.topic:
+                health.on_message(payload)
 
+        if self.healthy:
             if self.sensor.value >= self.vmax.value and \
-               self.load.value is LoadState.Q0:
+               (self.load == LoadState.Q0 or self.target != LoadState.Q1):
                 self.target = LoadState.Q1
-                logger.debug('Switching to Q1 with {}: {}', self.load.q1_topic, self.load.q1_value)
+                logger.success('Switching to Q1 with {}: {}', self.load.q1_topic, self.load.q1_value)
                 self.client.publish(self.load.q1_topic, self.load.q1_value, qos=0, retain=False)
 
             if self.sensor.value <= self.vmin.value and \
-               self.load.value is LoadState.Q1:
+               (self.load == LoadState.Q1 or self.target != LoadState.Q0):
                 self.target = LoadState.Q0
-                logger.debug('Switching to Q0 with {}: {}', self.load.q0_topic, self.load.q0_value)
+                logger.success('Switching to Q0 with {}: {}', self.load.q0_topic, self.load.q0_value)
                 self.client.publish(self.load.q0_topic, self.load.q0_value, qos=0, retain=False)
+        elif self.load != LoadState.Qe:
+            self.target = LoadState.Qe
+            logger.success('Switching to Qe with {}: {}', self.load.qe_topic, self.load.qe_value)
+            self.client.publish(self.load.qe_topic, self.load.qe_value, qos=0, retain=False)
 
+        self.client.publish(self.lwt_topic, 'Online' if self.healthy else 'Error', qos=0, retain=False)
         self.client.publish(
             self.state_topic,
             str(self),
