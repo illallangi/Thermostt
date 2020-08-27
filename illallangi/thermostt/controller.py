@@ -61,10 +61,10 @@ class Controller(object):
     @property
     def healthy(self):
         return self.load.value and \
-               self.sensor.value and \
-               self.vmax.value and \
-               self.vmin.value and \
-               not HealthState.Unhealthy in (h.value for h in self.health)
+            self.sensor.value and \
+            self.vmax.value and \
+            self.vmin.value and \
+            HealthState.Unhealthy not in (h.value for h in self.health)
 
     @cached_property
     def client(self):

@@ -44,7 +44,7 @@ class Load(object):
         self.jmespath = compile(self.jmespath) if not isinstance(self.jmespath, ParsedResult) else self.jmespath
         logger.debug('Subscribed to {} with jmespath filter {}', self.topic, self.jmespath)
 
-    def __eq__(self, other): 
+    def __eq__(self, other):
         if isinstance(other, LoadState):
             if other is LoadState.Q0 and self.value in self.q0:
                 return True
