@@ -61,7 +61,7 @@ class Controller(object):
         return dumps({
             k: o[k]
             for k in o
-            if o[k]
+            if o[k] is not None
         })
 
     @property
