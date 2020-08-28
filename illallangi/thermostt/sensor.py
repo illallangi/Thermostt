@@ -16,8 +16,8 @@ class Sensor(object):
         super().__init__(
             *args,
             **kwargs)
-        self.topic = topic or f'tele/{name}/SENSOR'
-        self.jmespath = jmespath or 'payload.DS18B20.Temperature'
+        self.topic = topic or 'tele/+/SENSOR'
+        self.jmespath = jmespath or f"values(payload)[?Id=='{name}']|[0].Temperature"
         self.jmespath = compile(self.jmespath) if not isinstance(self.jmespath, ParsedResult) else self.jmespath
         self.delta = delta
         logger.debug('Subscribed to {} with jmespath filter {}', self.topic, self.jmespath)
@@ -38,6 +38,8 @@ class Sensor(object):
             filtered_json = self.jmespath.search(payload)
         except Exception as e:
             logger.error('Error filtering: {}', str(e))
+            return
+        if filtered_json is None:
             return
 
         try:

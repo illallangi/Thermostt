@@ -76,7 +76,7 @@ def cli(log_level, slack_webhook, slack_username, slack_format):
 @option('--sensor-delta', type=FLOAT, required=False, default=0.0)
 @option('--sensor-topic', type=STRING, required=False)
 @option('--sensor-jmespath', type=STRING, required=False)
-@option('--sensor-health', type=STRING, required=False)
+@option('--sensor-health', type=STRING, required=True)
 @option('--sensor-health-topic', type=STRING, required=False)
 @option('--sensor-health-jmespath', type=STRING, required=False)
 @option('--sensor-health-healthy', type=STRING, required=False)
