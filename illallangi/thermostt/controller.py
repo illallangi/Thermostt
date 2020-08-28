@@ -1,6 +1,7 @@
 from datetime import datetime
 from functools import cached_property
 from json import dumps, loads
+from re import match
 
 from loguru import logger
 
@@ -8,6 +9,11 @@ from paho.mqtt.client import Client
 
 from .healthstate import HealthState
 from .loadstate import LoadState
+
+
+# https://codegolf.stackexchange.com/a/188404
+def mqtt_topic_match(a, b):
+    return bool(match(b.translate({43: "[^/]+", 35: ".+"}), a))
 
 
 class Controller(object):
@@ -108,20 +114,20 @@ class Controller(object):
 
         logger.trace(payload)
 
-        if msg.topic == self.load.topic:
+        if mqtt_topic_match(msg.topic, self.load.topic):
             self.load.on_message(payload)
 
-        if msg.topic == self.sensor.topic:
+        if mqtt_topic_match(msg.topic, self.sensor.topic):
             self.sensor.on_message(payload)
 
-        if msg.topic == self.vmax.topic:
+        if mqtt_topic_match(msg.topic, self.vmax.topic):
             self.vmax.on_message(payload)
 
-        if msg.topic == self.vmin.topic:
+        if mqtt_topic_match(msg.topic, self.vmin.topic):
             self.vmin.on_message(payload)
 
         for health in self.health:
-            if msg.topic == health.topic:
+            if mqtt_topic_match(msg.topic, health.topic):
                 health.on_message(payload)
 
         if self.healthy:
